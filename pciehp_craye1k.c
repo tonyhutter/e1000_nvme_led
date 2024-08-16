@@ -57,7 +57,7 @@ static struct craye1k {
 	struct mutex lock;
 	struct completion read_complete;
 	struct ipmi_addr address;
-	ipmi_user_t user;
+	struct ipmi_user *user;
 	int iface;
 
 	long tx_msg_id;
@@ -518,7 +518,7 @@ static struct ipmi_user_hndl craye1k_msg_handlers = {
 	.ipmi_recv_hndl = craye1k_msg_handler
 };
 
-int __craye1k_get_attention_status(struct hotplug_slot *hotplug_slot,
+static int __craye1k_get_attention_status(struct hotplug_slot *hotplug_slot,
 	u8 *status, bool set_primary)
 {
 	unsigned char slot;
@@ -560,13 +560,14 @@ out:
 	return rc;
 }
 
-int craye1k_get_attention_status(struct hotplug_slot *hotplug_slot,
+static int craye1k_get_attention_status(struct hotplug_slot *hotplug_slot,
     u8 *status)
 {
 	return __craye1k_get_attention_status(hotplug_slot, status, true);
 }
 
-int craye1k_set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
+static int craye1k_set_attention_status(struct hotplug_slot *hotplug_slot,
+	u8 status)
 {
 	unsigned char slot;
 	int tries = 4;
@@ -623,7 +624,7 @@ int craye1k_set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 		 * The 500ms minimum in the backoff reduced the chance of this
 		 * whole retry loop failing from 1 in 700 to none in 10000.
 		 */
-		msleep(500 + (get_random_int() % 500));
+		msleep(500 + (get_random_long() % 500));
 	}
 
 	if (tries == 0) {
@@ -637,7 +638,7 @@ int craye1k_set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 /*
  * Returns the hotplug controller for a given pci_dev (if any).
  */
-struct controller *craye1k_pci_dev_to_ctrl(struct pci_dev *dev)
+static struct controller *craye1k_pci_dev_to_ctrl(struct pci_dev *dev)
 {
 	struct device *device;
 	struct pcie_device *edev;
@@ -661,7 +662,7 @@ struct controller *craye1k_pci_dev_to_ctrl(struct pci_dev *dev)
 /*
  * Update the hotplug 'attention' callbacks to point to craye1k's callbacks.
  */
-void craye1k_setup_attention_callbacks(void)
+static void craye1k_setup_attention_callbacks(void)
 {
 	struct pci_dev *dev = NULL;
 	const struct hotplug_slot_ops *ops;
@@ -711,7 +712,7 @@ void craye1k_setup_attention_callbacks(void)
 	}
 }
 
-void craye1k_restore_attention_callbacks(void)
+static void craye1k_restore_attention_callbacks(void)
 {
 	struct pci_dev *dev = NULL;
 	unsigned char slot;
@@ -804,7 +805,7 @@ static bool is_craye1k_board(void)
 	return dmi_match(DMI_PRODUCT_NAME, "VSSEP1EC");
 }
 
-int craye1k_init(void)
+static int craye1k_init(void)
 {
 	int rc = 0;
 
@@ -814,7 +815,7 @@ int craye1k_init(void)
 	return rc;
 }
 
-void craye1k_exit(void)
+static void craye1k_exit(void)
 {
 	if (is_craye1k_board()) {
 		ipmi_smi_watcher_unregister(&smi_watcher);
